@@ -21,6 +21,9 @@ import os
 import subprocess
 import getpass
 
+import langchain
+langchain.debug = True
+
 # Environment variables and configuration
 os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
 
@@ -117,7 +120,7 @@ def get_vector_store(pdf_path="sample.pdf") -> FAISS:
 # Initialize vector store with fallback mechanism
 try:
     # Check if the PDF exists
-    pdf_path = '/home/guolisen/react_test_project/llama3.pdf'
+    pdf_path = '/root/react_test_project/2210.03629v3.pdf'
     if not os.path.exists(pdf_path):
         # If not, create a simple text file with sample content
         print(f"Warning: PDF file not found at {pdf_path}")
