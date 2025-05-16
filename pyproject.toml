@@ -5,10 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "command>=0.1.0",
     "google-search-results>=2.4.2",
+    "ipython>=9.2.0",
     "langchain>=0.3.25",
+    "langchain-community>=0.3.24",
     "langchain-ollama>=0.3.2",
+    "langchain-openai>=0.3.16",
     "langchain-tools>=0.1.34",
+    "langgraph>=0.4.3",
     "numexpr>=2.10.2",
+    "pypdf>=5.5.0",
     "serpapi>=0.1.5",
 ]

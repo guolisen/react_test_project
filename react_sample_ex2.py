@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 
 os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
 
-gpt35_chat = ChatOpenAI(model="GLM-4-Flash", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
+gpt35_chat = ChatOpenAI(model="GLM-4-Plus", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
 
 def initialize_llm():
     url = "http://10.226.163.45:11434"
@@ -17,16 +17,13 @@ def initialize_llm():
     return OllamaLLM(model="llama3.1:8b", base_url=url, temperature=0.8, top_k=10, top_p=0.2, verbose=False,
                num_predict=16384, num_ctx=16384)
 
-
-import os      # OpenAI 环境变量   
 # 搜索工具环境变量   
 os.environ['SERPAPI_API_KEY'] = 'e30fb0867db7fe3f78662ef26fc5059462c0c9bd2219be8efae54716a1ef6058'      
 # LangSmith 环境变量 (可选) ,如果需要使用 LangSmith 功能，请在环境变量中设置以下变量   
-#os.environ['LANGCHAIN_TRACING_V2'] = "true"   
-#os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
-#os.environ['LANGCHAIN_API_KEY'] = "lsv2_pt1c9e"   
-#os.environ['LANGCHAIN_PROJECT'] = "hello-agent"   
-
+os.environ['LANGCHAIN_TRACING_V2'] = "true"   
+os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
+os.environ['LANGCHAIN_API_KEY'] = "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"   
+os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"   
 
 
 # 设置工具   
