@@ -67,7 +67,7 @@ tools += loaded_tools
 # 设置提示模板   
 from langchain.prompts import PromptTemplate      
 template = '''
-       尽你所能用中文回答以下问题。如果能力不够你可以使用以下工具:  {tools}
+       if you cannot answer the query from user, double check whether the following tools can help:  {tools}
               Use the following format:              
               Question: the input question you must answer       
               Thought: you should always think about what to do       
@@ -95,6 +95,6 @@ agent = create_react_agent(gpt35_chat, tools, prompt)      # 构建AgentExecutor
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 result = agent_executor.invoke({"input":                             
-                       """今天市场上玫瑰花的一般进货价格是多少？                              
-                       如果我在此基础上加价5%，应该如何定价？"""})   
+                       """What is the typical price of entry for roses in the market today?                              
+                       If I add 5% on top of that, how should I price them?"""})   
 print(result["output"])

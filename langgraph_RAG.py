@@ -229,8 +229,14 @@ def chat_bot(state: State):
     Returns:
         Updated state with AI response added to messages
     """
-    # Generate a response using the LLM
-    response = llm.invoke(state["messages"])
+    # Add a prompt to get a final response based on current information
+    final_prompt = HumanMessage(
+        content="According to current information, please provide a final comprehensive response."
+    )
+    
+    # Generate a response using the LLM with the added prompt
+    messages = state["messages"] + [final_prompt]
+    response = llm.invoke(messages)
     
     # Return the response to be added to messages
     return {"messages": [response]}
