@@ -27,8 +27,8 @@ import langchain
 #langchain.debug = True
 
 # Environment variables and configuration
-os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
-os.environ["DASHSCOPE_API_KEY"] = 'sk-75c44da9706a4b039ebc0f81b5924786'
+os.environ["OPENAI_API_KEY"] = '.'
+os.environ["DASHSCOPE_API_KEY"] = 'sk-'
 
 # Initialize LLM
 gpt35_chat = ChatOpenAI(model="GLM-4-Plus", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
@@ -39,10 +39,10 @@ def initialize_llm():
                num_predict=16384, num_ctx=16384)
 
 # Additional API configurations
-os.environ['SERPAPI_API_KEY'] = 'e30fb0867db7fe3f78662ef26fc5059462c0c9bd2219be8efae54716a1ef6058'      
+os.environ['SERPAPI_API_KEY'] = ''      
 os.environ['LANGCHAIN_TRACING_V2'] = "true"   
 os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
-os.environ['LANGCHAIN_API_KEY'] = "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"   
+os.environ['LANGCHAIN_API_KEY'] = ""   
 os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"
 
 # Initialize LLM

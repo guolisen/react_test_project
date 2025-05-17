@@ -7,7 +7,7 @@ import os, getpass
 from langchain_openai import ChatOpenAI
 
 
-os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
+os.environ["OPENAI_API_KEY"] = '.'
 
 gpt35_chat = ChatOpenAI(model="GLM-4-Plus", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
 
