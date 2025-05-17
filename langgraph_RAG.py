@@ -24,7 +24,7 @@ import subprocess
 import getpass
 
 import langchain
-langchain.debug = True
+#langchain.debug = True
 
 # Environment variables and configuration
 os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
@@ -238,15 +238,17 @@ def chat_bot(state: State):
 # Define the SERPAPI search node
 def serpapi_search(state: State) -> Dict:
     """
-    Search the web using SERPAPI when retrieved information is insufficient
+    Search the web using SERPAPI and combine results with retrieved information
     
     Args:
         state: Current state with messages and question
         
     Returns:
-        Updated state with search results added to messages
+        Updated state with combined information
     """
     question = state.get("question", "No question available")
+    # Get the original retrieved information
+    original_info = state["messages"][0].content if state["messages"] else ""
     
     # Initialize SerpAPI wrapper
     search = SerpAPIWrapper()
@@ -255,19 +257,32 @@ def serpapi_search(state: State) -> Dict:
     try:
         search_results = search.run(question)
         
-        # Create a message with the search results
-        search_message = AIMessage(content=f"Web search results: {search_results}")
+        # Create a combined prompt with both retrieved and web information
+        combined_prompt = f"""Please answer the user question based on ALL the following information:
+
+Original Retrieved Information:
+{original_info}
+
+Web Search Results:
+{search_results}
+
+User Question:
+{question}
+
+If you still don't have sufficient information to answer the question accurately,
+respond with 'I cannot answer this question with the available information.'
+"""
+        # Create a message with the combined information
+        combined_message = HumanMessage(content=combined_prompt)
         
-        # Return the search results to be added to state
-        return {
-            "messages": [search_message]
-        }
+        # Return the combined message
+        return {"messages": [combined_message]}
     except Exception as e:
         # Handle any errors during search
-        error_message = AIMessage(content=f"Error during web search: {str(e)}. Using available information.")
-        return {
-            "messages": [error_message]
-        }
+        error_message = HumanMessage(
+            content=f"Error during web search: {str(e)}. Using only the original information."
+        )
+        return {"messages": [error_message]}
 
 # Define verification function for conditional branching
 def verify(state: State) -> Literal["chat_bot", "serpapi"]:
@@ -320,8 +335,8 @@ def build_graph():
     graph_builder.add_edge(START, "retrieval")
     graph_builder.add_conditional_edges("retrieval", verify)
     graph_builder.add_edge("chat_bot", END)
-    # SERPAPI results go directly to END after providing search results
-    graph_builder.add_edge("serpapi", END)
+    # SERPAPI results go to chat_bot instead of a separate final_answer node
+    graph_builder.add_edge("serpapi", "chat_bot")
     
     # Compile the graph with checkpointing
     graph = graph_builder.compile(checkpointer=memory)
