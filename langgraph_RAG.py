@@ -3,6 +3,7 @@ from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt, Send, Interrupt, Command
 
 # LangChain imports
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -11,6 +12,7 @@ from langchain.prompts import PromptTemplate, ChatPromptTemplate, HumanMessagePr
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import Tool
 from langchain.schema import HumanMessage, AIMessage
+from langchain_community.utilities import SerpAPIWrapper
 
 # Vector store and embedding
 from langchain_community.vectorstores import FAISS
@@ -26,6 +28,7 @@ langchain.debug = True
 
 # Environment variables and configuration
 os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
+os.environ["DASHSCOPE_API_KEY"] = 'sk-75c44da9706a4b039ebc0f81b5924786'
 
 # Initialize LLM
 gpt35_chat = ChatOpenAI(model="GLM-4-Plus", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
@@ -46,12 +49,22 @@ os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"
 llm = gpt35_chat
 
 # Initialize embedding model - using OpenAI embeddings which should be available
+'''
 embedding_model = OpenAIEmbeddings(
     base_url="https://open.bigmodel.cn/api/paas/v4",
     #model="text-embedding-ada-002",
     model="embedding-3",
     openai_api_key=os.getenv('OPENAI_API_KEY')
 )
+'''
+
+
+from langchain_community.embeddings import DashScopeEmbeddings
+embedding_model = DashScopeEmbeddings(
+    model = 'text-embedding-v1',
+    dashscope_api_key = os.getenv('DASHSCOPE_API_KEY')
+)
+
 
 # Set up vector database directory
 db_dir = "./faiss_db"
@@ -74,7 +87,7 @@ def create_db(pdf_path="sample.pdf") -> FAISS:
         # Split text into chunks
         text_splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "\n", ".", " ", ""],
-            chunk_size=1000, 
+            chunk_size=2048, 
             chunk_overlap=200,
             add_start_index=True
         )
@@ -120,7 +133,7 @@ def get_vector_store(pdf_path="sample.pdf") -> FAISS:
 # Initialize vector store with fallback mechanism
 try:
     # Check if the PDF exists
-    pdf_path = '/root/react_test_project/2210.03629v3.pdf'
+    pdf_path = '/home/guolisen/react_test_project/2210.03629v3.pdf'
     if not os.path.exists(pdf_path):
         # If not, create a simple text file with sample content
         print(f"Warning: PDF file not found at {pdf_path}")
@@ -143,11 +156,9 @@ except Exception as e:
 
 # Define the state for the graph
 class State(TypedDict):
-    """State for the RAG graph with human interaction"""
+    """State for the RAG graph with web search capability"""
     messages: Annotated[list, add_messages]
     question: str
-    human_input: str
-    waiting_for_human: bool
 
 # Define the retrieval node
 def retrieval(state: State):
@@ -224,45 +235,42 @@ def chat_bot(state: State):
     # Return the response to be added to messages
     return {"messages": [response]}
 
-# Define the human interaction node
-def human_ask(state: State) -> Dict:
+# Define the SERPAPI search node
+def serpapi_search(state: State) -> Dict:
     """
-    Handle human interaction when AI cannot answer
+    Search the web using SERPAPI when retrieved information is insufficient
     
     Args:
         state: Current state with messages and question
         
     Returns:
-        Dictionary with waiting_for_human flag set to True
+        Updated state with search results added to messages
     """
-    # Signal that we're waiting for human input
-    return {"waiting_for_human": True}
-
-# Function to process human input
-def process_human_input(state: State) -> Dict:
-    """
-    Process human input received while waiting
+    question = state.get("question", "No question available")
     
-    Args:
-        state: Current state with human_input
+    # Initialize SerpAPI wrapper
+    search = SerpAPIWrapper()
+    
+    # Perform the search
+    try:
+        search_results = search.run(question)
         
-    Returns:
-        Updated state with human answer added to messages
-    """
-    # Get the human input from the state
-    human_answer = state.get("human_input", "No answer provided")
-    
-    # Create a message with the human answer
-    human_message = AIMessage(content=f"Human expert answer: {human_answer}")
-    
-    # Return the message to be added to state
-    return {
-        "messages": [human_message],
-        "waiting_for_human": False
-    }
+        # Create a message with the search results
+        search_message = AIMessage(content=f"Web search results: {search_results}")
+        
+        # Return the search results to be added to state
+        return {
+            "messages": [search_message]
+        }
+    except Exception as e:
+        # Handle any errors during search
+        error_message = AIMessage(content=f"Error during web search: {str(e)}. Using available information.")
+        return {
+            "messages": [error_message]
+        }
 
 # Define verification function for conditional branching
-def verify(state: State) -> Literal["chat_bot", "human_ask"]:
+def verify(state: State) -> Literal["chat_bot", "serpapi"]:
     """
     Verify if the retrieved information can answer the user's question
     
@@ -270,11 +278,11 @@ def verify(state: State) -> Literal["chat_bot", "human_ask"]:
         state: Current state with messages
         
     Returns:
-        Next node identifier: either "chat_bot" or "human_ask"
+        Next node identifier: either "chat_bot" or "serpapi"
     """
     # Create a verification prompt for the LLM
     verification_message = HumanMessage(
-        content="Based on the retrieved information, can you answer the user's question accurately? Respond with 'Y' if you can, or 'N' if you need more information or human assistance."
+        content="Based on the retrieved information, can you answer the user's question accurately? Respond with 'Y' if you can, or 'N' if you need more information from web search."
     )
     
     # Get the verification result
@@ -286,8 +294,8 @@ def verify(state: State) -> Literal["chat_bot", "human_ask"]:
         print("AI can answer this question with available information.")
         return "chat_bot"
     else:
-        print("AI cannot answer this question, forwarding to human.")
-        return "human_ask"
+        print("AI cannot answer this question, searching the web.")
+        return "serpapi"
 
 # Build the graph
 def build_graph():
@@ -306,15 +314,14 @@ def build_graph():
     # Add nodes
     graph_builder.add_node("retrieval", retrieval)
     graph_builder.add_node("chat_bot", chat_bot)
-    graph_builder.add_node("human_ask", human_ask)
-    graph_builder.add_node("process_human_input", process_human_input)
+    graph_builder.add_node("serpapi", serpapi_search)
     
     # Add edges
     graph_builder.add_edge(START, "retrieval")
     graph_builder.add_conditional_edges("retrieval", verify)
     graph_builder.add_edge("chat_bot", END)
-    graph_builder.add_edge("human_ask", END)
-    graph_builder.add_edge("process_human_input", END)
+    # SERPAPI results go directly to END after providing search results
+    graph_builder.add_edge("serpapi", END)
     
     # Compile the graph with checkpointing
     graph = graph_builder.compile(checkpointer=memory)
@@ -324,83 +331,52 @@ def build_graph():
 # Create thread configuration for the graph
 thread_config = {"configurable": {"thread_id": "rag_thread_id"}}
 
+# Global variable to track the current thread
+current_thread_id = None
+
 # Function to process the graph stream and handle updates
+from langgraph.errors import GraphInterrupt
+
 def stream_graph_updates(user_input: str, graph):
     """
-    Process user input through the graph
+    Process user input through the graph and display responses
     
     Args:
         user_input: User's question
         graph: Compiled StateGraph
+    """
+    global current_thread_id
+    
+    try:
+        # Create a thread config if one doesn't exist yet, or use the existing one
+        config = {"configurable": {"thread_id": current_thread_id or "rag_thread_id"}}
         
-    Returns:
-        True if waiting for human input, False otherwise
-    """
-    # Create initial state with the user's message
-    initial_state = {
-        "messages": [{"role": "user", "content": user_input}],
-        "question": "",
-        "human_input": "",
-        "waiting_for_human": False
-    }
-    
-    # Stream the initial state through the graph
-    for event in graph.stream(initial_state, thread_config):
-        for key, value in event.items():
-            # Check if we're waiting for human input
-            if key == "nodes" and value == "human_ask":
-                return True
-                
-            # Check if this is an AI message
-            elif key == "state" and "messages" in value and len(value["messages"]) > 0:
-                last_message = value["messages"][-1]
-                if isinstance(last_message, AIMessage) or (isinstance(last_message, dict) and last_message.get("role") == "assistant"):
-                    content = last_message.content if hasattr(last_message, "content") else last_message.get("content", "")
-                    print(f"Assistant: {content}")
-    
-    return False
+        # Pass user input to the graph
+        for event in graph.stream(
+            {"messages": [{"role": "user", "content": user_input}]},
+            config
+        ):
+            # Save the thread_id for later use
+            if current_thread_id is None and hasattr(event, 'thread_id'):
+                current_thread_id = event.thread_id
+                print(f"Thread created with ID: {current_thread_id}")
+            for key, value in event.items():
+                # Check if we have an AI message to display
+                if "messages" in value and value["messages"] and isinstance(value["messages"][-1], AIMessage):
+                    print("Assistant:", value["messages"][-1].content)
+    except Exception as e:
+        print(f"Error in stream_graph_updates: {e}")
 
-# Function to provide human input to the graph
-def provide_human_input(human_input: str, graph):
-    """
-    Continue the graph execution with human input
     
-    Args:
-        human_input: Human's answer to the question
-        graph: Compiled StateGraph
-    """
-    # Create state with human input
-    state_with_human_input = {
-        "human_input": human_input,
-        "waiting_for_human": False
-    }
-    
-    # Call the process_human_input node with the updated state
-    config = {
-        "configurable": {
-            "thread_id": "rag_thread_id",
-            "channel": "process_human_input"
-        }
-    }
-    
-    # Process the human input
-    for event in graph.stream(state_with_human_input, config):
-        for key, value in event.items():
-            if key == "state" and "messages" in value and len(value["messages"]) > 0:
-                last_message = value["messages"][-1]
-                if isinstance(last_message, AIMessage) or (isinstance(last_message, dict) and last_message.get("role") == "assistant"):
-                    content = last_message.content if hasattr(last_message, "content") else last_message.get("content", "")
-                    print(f"Assistant: {content}")
-
 # Main execution function
 def run():
     """
-    Main execution loop for the RAG system with human interaction
+    Main execution loop for the RAG system with web search capability
     """
     # Build the graph
     graph = build_graph()
     
-    print("=== LangGraph RAG System with Human Interaction ===")
+    print("=== LangGraph RAG System with Web Search ===")
     print("Type 'exit' to quit the program.\n")
     
     # Run the interaction loop
@@ -416,14 +392,8 @@ def run():
         if not user_input:
             continue
         
-        # Process the user input through the graph
-        waiting_for_human = stream_graph_updates(user_input, graph)
-        
-        # If waiting for human input, get and process it
-        if waiting_for_human:
-            print(f"\nQuestion requires human assistance: {user_input}")
-            human_answer = input("Human answer: ")
-            provide_human_input(human_answer, graph)
+        # Process user input through the graph
+        stream_graph_updates(user_input, graph)
 
 # Run the program if executed directly
 if __name__ == "__main__":
