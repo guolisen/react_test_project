@@ -12,6 +12,7 @@ dependencies = [
     "ipython>=9.2.0",
     "langchain>=0.3.25",
     "langchain-community>=0.3.24",
+    "langchain-mcp-adapters>=0.1.0",
     "langchain-ollama>=0.3.2",
     "langchain-openai>=0.3.16",
     "langchain-tools>=0.1.34",

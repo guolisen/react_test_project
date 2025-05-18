@@ -13,7 +13,7 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import Tool
 
 
-os.environ["OPENAI_API_KEY"] = 'fd69c68ffab3452da1e00bbf6bd4c915.axvFwrXXiDDnJXKx'
+os.environ["OPENAI_API_KEY"] = '.'
 
 gpt35_chat = ChatOpenAI(model="GLM-4-Plus", temperature=0, base_url="https://open.bigmodel.cn/api/paas/v4", verbose=False)
 
@@ -28,7 +28,7 @@ os.environ['SERPAPI_API_KEY'] = 'e30fb0867db7fe3f78662ef26fc5059462c0c9bd2219be8
 # LangSmith 环境变量 (可选) ,如果需要使用 LangSmith 功能，请在环境变量中设置以下变量   
 os.environ['LANGCHAIN_TRACING_V2'] = "true"   
 os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
-os.environ['LANGCHAIN_API_KEY'] = "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"   
+os.environ['LANGCHAIN_API_KEY'] = ""   
 os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"   
 
 # 定义状态

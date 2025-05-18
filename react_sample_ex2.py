@@ -17,24 +17,24 @@ def initialize_llm():
     return OllamaLLM(model="llama3.1:8b", base_url=url, temperature=0.8, top_k=10, top_p=0.2, verbose=False,
                num_predict=16384, num_ctx=16384)
 
-# Search Tool Environment Variables   
+# 搜索工具环境变量   
 os.environ['SERPAPI_API_KEY'] = ''      
-# LangSmith Environment Variables (Optional), if you need to use LangSmith functionality, set the following variables in the environment   
+# LangSmith 环境变量 (可选) ,如果需要使用 LangSmith 功能，请在环境变量中设置以下变量   
 os.environ['LANGCHAIN_TRACING_V2'] = "true"   
 os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
 os.environ['LANGCHAIN_API_KEY'] = ""   
 os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"   
 
 
-# Setup Tools   
+# 设置工具   
 from langchain_core.tools import tool      
-# Custom calculator tool for calculating flower prices   
+# 自定义计算器工具，用于计算鲜花的价格   
 @tool   
 def calculator(expression: str) -> str:       
-    """Uses Python's numexpr library to calculate mathematical expressions          
-    The expression should be a single line mathematical expression          
-    For example:           
-    "352 * 493" means "352 multiplied by 493"       
+    """使用 Python 的 numexpr 库计算数学表达式          
+    表达式应该是一个单行的数学表达式          
+    例如:           
+    "352 * 493" 表示 "352 乘以 493"       
     """       
     import numexpr       
     import math 
@@ -82,13 +82,14 @@ template = '''
               Question: {input}       
               Thought:{agent_scratchpad}       
             '''      
-prompt = PromptTemplate.from_template(template)      
+prompt = PromptTemplate.from_template(template)      # from langsmith import Client   #   # client = Client()   # prompt  = client.pull_prompt("hwchase17/react")      print("提示词：")   print(prompt)   
 
-# Initialize Agent   
+# 初始化Agent   
 from langchain.agents import create_react_agent      
-agent = create_react_agent(gpt35_chat, tools, prompt)      
+agent = create_react_agent(gpt35_chat, tools, prompt)      # 构建AgentExecutor   from langchain.agents import AgentExecutor      agent_executor = AgentExecutor(agent=agent, tools=tools, handle_parsing_errors=False, verbose=True)   
 
-# Execute
+
+# 执行
 # Create the agent executor
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
