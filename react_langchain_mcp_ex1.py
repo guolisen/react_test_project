@@ -1,6 +1,6 @@
 """
-旅行规划助手实现 - 基于高德地图MCP + SSE + langchain_mcp_adapters + LangGraph
-使用LangGraph StateGraph和高德地图工具规划旅行行程
+Travel Planning Assistant Implementation - Based on Gaode Maps MCP + SSE + langchain_mcp_adapters + LangGraph
+Using LangGraph StateGraph and Gaode Maps tools to plan travel itineraries
 """
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
@@ -11,7 +11,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-# 加载环境变量
+# Load environment variables
 load_dotenv(override=True)
 
 os.environ['GAODE_MAP_KEY'] = ''
@@ -20,7 +20,7 @@ os.environ['GAODE_MAP_KEY'] = ''
 os.environ["OPENAI_API_KEY"] = 'sk-'
 os.environ['LANGCHAIN_TRACING_V2'] = "true"   
 os.environ['LANGCHAIN_ENDPOINT'] = "https://api.smith.langchain.com"   
-os.environ['LANGCHAIN_API_KEY'] = "lsv2pt_7f6ce94edab445cfacc2a9164333b97d_11115ee170"   
+os.environ['LANGCHAIN_API_KEY'] = ""   
 os.environ['LANGCHAIN_PROJECT'] = "pr-silver-bank-1"
 
 # Initialize language model
@@ -36,16 +36,16 @@ model = init_chat_model(
 
 async def create_travel_planner_graph():
     """
-    创建旅行规划StateGraph，使用高德地图API工具处理用户查询
+    Create a travel planning StateGraph, using Gaode Maps API tools to process user queries
     
-    返回:
-        StateGraph实例和MCP客户端
+    Returns:
+        StateGraph instance and MCP client
     """
     
-    # 获取高德地图API密钥
+    # Get Gaode Maps API key
     gaode_map_key = os.getenv("GAODE_MAP_KEY")
     
-    # 创建MCP客户端连接高德地图API - 使用字典配置
+    # Create MCP client connecting to Gaode Maps API - using dictionary configuration
     client = MultiServerMCPClient(
         {
             "search": {
@@ -55,42 +55,42 @@ async def create_travel_planner_graph():
         }
     )
     
-    # 获取MCP工具
+    # Get MCP tools
     tools = await client.get_tools()
     
-    # 定义调用模型的函数
+    # Define function to call the model
     def call_model(state: MessagesState):
-        """使用工具绑定调用语言模型"""
-        # 为模型添加系统提示，指导其如何规划旅行行程
+        """Call language model with bound tools"""
+        # Add system prompt for the model, guiding how to plan travel itineraries
         if state["messages"] and state["messages"][0] != "system":
             system_message = {
                 "role": "system",
-                "content": """你是一个专业的旅行规划助手，擅长使用高德地图工具创建个性化旅行行程。
-                你的目标是理解用户的旅行需求，并使用提供的高德地图工具规划最佳路线、查找景点和安排行程。
+                "content": """You are a professional travel planning assistant, skilled at using Gaode Maps tools to create personalized travel itineraries.
+                Your goal is to understand the user's travel needs and use the provided Gaode Maps tools to plan the best routes, find attractions, and arrange itineraries.
                 
-                在规划旅行行程时，请遵循以下步骤：
-                1. 分析用户的旅行需求，包括出发地、目的地、时间限制和偏好
-                2. 确定需要使用的高德地图工具来获取所需信息
-                3. 首先规划主要路线和交通方式
-                4. 查找沿途和目的地的热门景点、美食和住宿选择
-                5. 根据旅行时间和用户偏好，优化行程安排
-                6. 提供详细的日程安排，包括每天的活动、交通和时间估计
-                7. 确保行程合理、可行，并包含足够的详细信息
+                When planning travel itineraries, please follow these steps:
+                1. Analyze the user's travel needs, including departure location, destination, time constraints, and preferences
+                2. Determine which Gaode Maps tools are needed to obtain the required information
+                3. First plan the main routes and transportation methods
+                4. Find popular attractions, food options, and accommodation choices along the route and at the destination
+                5. Optimize the itinerary arrangement based on travel time and user preferences
+                6. Provide detailed daily schedules, including activities, transportation, and time estimates
+                7. Ensure the itinerary is reasonable, feasible, and contains sufficient details
 
-                请注意以下几点：
-                - 如果用户没有指定具体景点，请推荐热门或特色景点
-                - 考虑交通时间和参观景点所需时间，避免行程过于紧凑
-                - 考虑天气、季节和当地文化因素
-                - 提供清晰的行程结构，并说明每个环节的交通方式
+                Please note the following points:
+                - If the user does not specify particular attractions, recommend popular or distinctive attractions
+                - Consider transportation time and time needed to visit attractions, avoiding overly tight schedules
+                - Take into account weather, season, and local cultural factors
+                - Provide a clear itinerary structure, explaining the transportation method for each segment
                 """
             }
             state["messages"] = [system_message] + state["messages"]
         
-        # 调用模型并绑定工具
+        # Call the model and bind tools
         response = model.bind_tools(tools).invoke(state["messages"])
         return {"messages": state["messages"] + [response]}
     
-    # 构建状态图
+    # Build state graph
     builder = StateGraph(MessagesState)
     builder.add_node(call_model)
     builder.add_node(ToolNode(tools))
@@ -107,31 +107,30 @@ async def create_travel_planner_graph():
 
 async def plan_travel_itinerary(query):
     """
-    旅行规划主函数，处理用户查询并提供旅行行程
+    Main travel planning function, processes user queries and provides travel itineraries
     
-    参数:
-        query: 用户查询字符串
+    Parameters:
+        query: User query string
         
-    返回:
-        包含旅行规划结果的字典
+    Returns:
+        Dictionary containing travel planning results
     """
     try:
-        # 创建旅行规划图和客户端
+        # Create travel planning graph and client
         graph, client = await create_travel_planner_graph()
         
-        # 转换查询格式
+        # Convert query format
         formatted_query = {"messages": [{"role": "user", "content": query}]}
         
-        # 运行图处理用户查询
+        # Run graph to process user query
         response = await graph.ainvoke(formatted_query)
         
-        # 提取最终回答
+        # Extract final answer
         final_message = response["messages"][-1] #["content"] #if response["messages"] else "未能生成回答"
         if "content" in final_message:
             final_message = final_message["content"]
 
-        # 返回格式化的响应
-        client = None
+        # Return formatted response
         return {
             "status": "success",
             "result": final_message.content,
@@ -139,49 +138,50 @@ async def plan_travel_itinerary(query):
         }
 
     except Exception as e:
-        # 捕获并返回错误信息
+        # Capture and return error information
         return {
             "status": "error",
             "error": str(e)
         }
     finally:
-        # 确保资源正确关闭
+        # Ensure resources are properly closed
         graph = None
+        client = None
 
 
 
 async def run_examples():
-    """运行示例查询"""
-    # 示例查询 - 旅行规划
+    """Run example queries"""
+    # Example queries - travel planning
     queries = [
-        "我想从北京到西安旅游，请帮我规划三天的行程，包括著名的历史景点和当地美食",
-        "我和家人计划从上海到杭州旅游，需要一个两天的行程，我们有老人和孩子，所以需要比较轻松的行程",
-        "我打算从广州到桂林自驾游，请帮我规划一条五天的路线，想体验当地的自然风光和少数民族文化"
+        "I want to travel from Beijing to Xi'an, please help me plan a three-day itinerary, including famous historical sites and local cuisine",
+        "My family and I are planning to travel from Shanghai to Hangzhou, we need a two-day itinerary, we have elderly people and children, so we need a relatively relaxed schedule",
+        "I plan to drive from Guangzhou to Guilin, please help me plan a five-day route, I want to experience the local natural scenery and ethnic minority cultures"
     ]
     
-    # 选择一个查询来运行示例
+    # Select a query to run the example
     query = queries[0]
     
-    print(f"处理旅行规划查询: {query}")
+    print(f"Processing travel planning query: {query}")
     result = await plan_travel_itinerary(query)
     
     if result["status"] == "success":
-        print("\n==== 旅行规划结果 ====")
+        print("\n==== Travel Planning Result ====")
         print(result["result"])
-        print("\n==== 规划完成 ====")
+        print("\n==== Planning Complete ====")
     else:
-        print(f"处理出错: {result.get('error', '未知错误')}")
+        print(f"Processing error: {result.get('error', 'Unknown error')}")
 
 
 async def process_user_query(query):
     """
-    处理用户输入的查询
+    Process user input query
     
-    参数:
-        query: 用户查询字符串
+    Parameters:
+        query: User query string
         
-    返回:
-        旅行规划结果
+    Returns:
+        Travel planning result
     """
     try:
         result = await plan_travel_itinerary(query)
@@ -189,19 +189,19 @@ async def process_user_query(query):
     except Exception as e:
         return {
             "status": "error",
-            "error": f"处理查询时发生错误: {str(e)}"
+            "error": f"Error occurred while processing query: {str(e)}"
         }
 
 
 async def main_async():
-    """主异步函数"""
-    print("旅行规划助手 - 基于高德地图MCP + SSE + langchain_mcp_adapters + LangGraph")
-    print("正在初始化系统...")
+    """Main async function"""
+    print("Travel Planning Assistant - Based on Gaode Maps MCP + SSE + langchain_mcp_adapters + LangGraph")
+    print("Initializing system...")
     await run_examples()
 
 
 def main():
-    """主函数入口点"""
+    """Main function entry point"""
     asyncio.run(main_async())
 
 
